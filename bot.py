@@ -10,10 +10,11 @@ from asyncio import gather
 
 from commands import ping, name
 
+import requests
 import pandas as pd
 
 ## indirect commands
-df = pd.read_csv('textpixoubot_u.csv', delimiter=';')
+df = pd.read_csv('textpixoubot.csv', delimiter=';')
 
 ## Users list
 guild_id = 398770997559296011 # Enterprise
@@ -75,21 +76,31 @@ async def on_message(message):
     if disable_bot: # bot is disable
         return
 
+    ## Auto update
+    if message.author.id in admin_ids:
+        if message.attachments:
+            if message.attachments[0].filename == "textpixoubot.csv":
+                r = requests.get(message.attachments[0].url)
+
+                ## Add data headers/column names
+                file_content = "command;response;\n" + r.content.decode("iso-8859-1")
+                open("textpixoubot.csv", 'wb').write(file_content.encode("utf-8"))
+
+                # Update the database
+                global df
+                df = pd.read_csv('textpixoubot.csv', delimiter=';')
+
+                await message.reply("Done, database is update")
+                return
+
     # sleeps between 2 and 6 seconds
     # TODO Disable responses
     sleep(random()*2 + 1)
     # Enable responses
 
-    responses = df.loc[df['command'] == message.content]
+    responses = df.loc[df['command'] == message.content.lower()]
     if not responses.empty:
         await message.reply(responses["response"].sample(n=1).to_string(index=False))
-
-    ## General logic
-    # log_channel = bot.get_channel(912781470668582962) # Log channel
-
-    if message.author.id == 654134051854352404: # Samus
-        # await log_channel.send("Samus: {}".format(message.content))
-        return
 
 async def on_reaction_add(reaction, user):
     if user.id == 863062654699438110: # Bot itself
